@@ -1,13 +1,16 @@
 import os
 try:
     from bs4 import BeautifulSoup
-    import lxml
 except:
     os.system("python -m pip install beautifulsoup4")
-    os.system("python -m pip install lxml")
     from bs4 import BeautifulSoup
-    import lxml
 
+
+remove_balises=True
+
+balises=[
+    "u"
+]
 
 soup=None
 with open("wiki_ac.xml", "+r", encoding="utf-8") as file:
@@ -34,6 +37,21 @@ for i in pages:
 
         text=text.split("[[Catégorie:")[0]
         text_output=f"{text_output}{text}"
+
+        if remove_balises:
+            new_text=""
+            new_text_wb=""
+            for balise in balises:
+                whithout_b=text_output.split(f"<{balise}>")
+                for m in whithout_b:
+                    new_text=f"{new_text}{m}"
+
+                whithout_b=new_text.split(f"</{balise}>")
+                for m in whithout_b:
+                    new_text_wb=f"{new_text_wb}{m}"
+                
+                
+            text_output=new_text_wb
 
         def function_output():
             with open(f"output/{title}.md", "+w", encoding="utf-8") as output:
