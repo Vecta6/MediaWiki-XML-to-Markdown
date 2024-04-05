@@ -1,162 +1,162 @@
+# Importation des modules
+# ------------
 import os
+import time
+import datetime
+from threading import Thread
+# ------------
+
+# Creation des variable
+# ------------
+suspect_exe=[]
+suspect_dll=[]
+threads=[]
+
+injector_fingerprint=[]
+
+folder_count=0
+files_count=0
+
+# ------------
+
+# Stockage des Empreinte d'injection
+# ------------
+for i in os.scandir("./fingerprint"):
+    if i.is_file():
+        with open(i.path, encoding="ansi") as file:
+            injector_fingerprint.append(file.readlines()[2])
+            file.close()
+# ------------
 
 
-# Importation des different modules et insatalation si manquant
-try:
-    from bs4 import BeautifulSoup
-    import customtkinter as ctk
-except:
-    os.system("python -m pip install beautifulsoup4")
-    os.system("python -m pip install customtkinter")
-    from bs4 import BeautifulSoup
-    import customtkinter as ctk
 
-
-app=ctk.CTk()
-
-file=None
-output_path=None
-new_file=None
-
-balises=[
-    "u",
-    "ins",
-    "s",
-    "del",
-    "code",
-    "blockquote",
-    "q",
-    "pre",
-    "div",
-    "center",
-    "Ecrit"
-]
-
-can_convert=0
-
-def enable_conert():
-    if can_convert>=2:
-        convert_btn.configure(state="normal")
-
-
-def ask_for_file():
-    global file
-    global can_convert
-    file=ctk.filedialog.askopenfile(title="Open file", filetypes=[("XML file", "*.xml")])
-    if file:
-        file_pos.configure(text=file.name)
-        can_convert+=1
-        enable_conert()
-
-def ask_output_directory():
-    global output_path
-    global can_convert
-    output_path=ctk.filedialog.askdirectory(title="Output direcory")
-    if output_path:
-        output_path_label.configure(text=output_path)
-        can_convert+=1
-        enable_conert()
-
-
-def convert():
-    global file
-    global output_path
-    remove_balises=option_remove_balises.get()
-
-    soup=None
-    with open(file.name, "+r", encoding="utf-8") as file:
-        soup=BeautifulSoup(file.read(), "xml")
-
-    pages=soup.find_all("page")
-
-    output_path_eatch_files=None
-    print("DEBUT")
-    for i in pages:
-        soup2=BeautifulSoup(str(i), "xml")
-        title=soup2.find("title").string
-        text=soup2.find("text").string
-
-        if title!="Accueil":
-            categorie=text.split("[[Catégorie:")[1::]
-            categories=[]
-            for j in categorie:
-                categories.append(j.split("]]")[0])
+# Fonction d'analyse d'un fichier dll
+# ------------
+def if_is_dll(file_info):
+    
+    # Rendre global certaine variable
+    # ------------
+    global suspect_dll
+    global injector_fingerprint
+    # ------------
+    
+    
+    file_info=file_info.split(";")                                                                  # Separer les differente information recuperer
+    try:                                                                                            # Essayer d'ouvrir le fichier
+        
+        with open(file_info[0], encoding="ansi") as injector:                                       # Ouvrir le fichier
+            if injector.readlines()[2] in injector_fingerprint:                                     # Comparer la ligne avec celle recupere
+                suspect_dll.append([file_info[0], file_info[1]])                                    # Si suspect alors ajouter le fichier dll au fichier suspect
+            injector.close()                                                                        # Fermer le fichier
             
-            text_output=""
+    except:                                                                                         # Si echec alors avertir
+        print(f"Impossible d'ouvrir le fichier {file_info[0]}")
+# ------------
 
-            for n in categories:
-                text_output=f"{text_output}#{n}\n"
+
+
+
+# Fonction des recherche
+def if_is_dir(path="./"):
+
+    # Rendre global certaine variable
+    # ------------
+    global threads
+    global suspect_exe
+    global suspect_dll
+    global injector_fingerprint
+    global folder_count
+    global files_count
+    # ------------
+
+    try:                                                                                                # Essayer d'acceder au dossier
+        for dir in os.scandir(path):                                                                    # Pour tout les element dans le dossier selectionner
             
+            if dir.is_dir() and dir.name!="__os_finder":                                                # Si l'element est un dossier et si le dossier specifique n'est pas egale a celui du programme
+                t=Thread(target=if_is_dir, args=[dir.path])#if_is_dir(path=dir.path)                    # Alors ça creer un nouveau Thread pour perdre moins de temps
+                t.start()
+                threads.append(t)                                                                       # Ajoute le Thread a la list 'threads'
+                folder_count=+1
+                
+            elif dir.is_file():                                                                         # Sinon si c'est un fichier
+                if dir.name in ["KrnlUI.exe", "JJS-UI.exe", "ScriptWare.exe", "krnlss.exe"]:            # Regarder si le nom du fichier corespond au nom suivant
+                    suspect_exe.append([dir.name, dir.path])                                            # Si il en fait partie alors l'ajouter en temps que suspect
+                    
+                if dir.name.split(".")[-1]=="dll":                                                      # Et si c'est un fichier en '.dll' alors analyser son contenu
+                    # with open(dir.path, encoding="ansi") as injector:
+                    #     if injector.readlines()[2] in injector_fingerprint:
+                    #         suspect_dll.append([dir.name, dir.path])
+                    #     injector.close()
+                    infos=f"{dir.path};{dir.name}"                                                      # Contenire les info du dossier dans une variable local
+                    t_dll=Thread(target=if_is_dll, args=[infos], name=f"Thread for: {dir.name}")    # Lancer un Thread pour l'analyse du fichier car permet de gagner du temps et de par exemple continuer des analyse sur d'autre fichier
+                    t_dll.start()
+                    t_dll.join()
+                    threads.append(t_dll)
+                files_count=+1
+    
+    except:                                                                                             # Si l'acces au dossier est impossible alors avertir
+        print(f"Impossible d'accéder au dossier {path}")
+    
 
-            text=text.split("[[Catégorie:")[0]
-            text_output=f"{text_output}{text}"
+# print("Voulez-vous faire une verification d'injecteur?\n0. non\n1. oui\n\n")
+# check=input("?")
 
-            if remove_balises:
-                for balise in balises:
-                    text_output=text_output.replace(f"<{balise}>", "")
-                    text_output=text_output.replace(f"</{balise}>", "")
+# check=check.split(",")
+# check_dll=False
 
-            
+# print(check)
 
-            def function_output():
-                with open(f"{output_path_eatch_files}/{title}.md", "+w", encoding="utf-8") as output:
-                    output.write(text_output)
-
-            if option_new_folder.get():
-                output_path_eatch_files=f"{output_path}/{option_new_folder_name.get()}"
-
-            if os.path.exists(f"{output_path_eatch_files}"):
-                function_output()
-            else:
-                os.mkdir(f"{output_path_eatch_files}")
-                function_output()
-
-    print("FIN")
+# for i in check:
+#     if i=="0":
+#         check_dll=False
+#     elif i=="1":
+#         check_dll==True
+#     else:
+#         print("une erreur est survenu")
 
 
-# Parametre de l'application
-# app.geometry("500x500")
-app.minsize(width=300, height=100)
-app.title("MW-XML to MD")
-app.grid_columnconfigure(0, weight=1)
+input("Appuyer sur entré pour commencer")
 
-ask_file=ctk.CTkButton(app,  text="File", command=ask_for_file)
-ask_file.grid(row=0, column=0, padx=20, pady=20)
+os.system("cls")
+print("Les verification a commence, merci de bien vouloir patienter...")
 
-file_pos=ctk.CTkLabel(app, text="")
-file_pos.grid(row=1, column=0, padx=20, pady=20)
+thread1=Thread(target=if_is_dir, args=["C:\\"], name="Thread Disk C")                                   # Lancer l'analyse sur le disk C:
+thread2=Thread(target=if_is_dir, args=["D:\\"], name="Thread Disk D")                                   # Lancer l'analyse sur le disk D:
 
-output_path_ask=ctk.CTkButton(app, text="Output Directory", command=ask_output_directory)
-output_path_ask.grid(row=2, column=0, padx=20, pady=20)
+thread1.start()
+thread2.start()
 
-output_path_label=ctk.CTkLabel(app, text="")
-output_path_label.grid(row=3, column=0, padx=20, pady=20)
+time1=time.time()                                                                                       # Recuperer le temps du debut de l'analyse
 
-options=ctk.CTkFrame(app)
-options.grid(row=4, column=0, padx=20, pady=20, sticky="ew")
+thread1.join()                                                                                          # Attendre la fin de l'analyse du disk C:
+thread2.join()                                                                                          # Attendre la fin de l'analyse du disk D:
 
-option_remove_balises=ctk.CTkCheckBox(options, text="Remove tags")
-option_remove_balises.grid(row=0, column=0, padx=20, pady=20)
 
-def if_newfolder_checked():
-    if option_new_folder.get():
-        option_new_folder_name.grid(row=1, column=1, padx=20, pady=(0, 20), sticky="ew")
-    else:
-        option_new_folder_name.grid_remove()
+for thread in threads:                                                                                  # Attendre la fin de tout les Thread si pas encore fini
+    thread.join()
 
-option_new_folder=ctk.CTkCheckBox(options, text="Create a new folder", command=if_newfolder_checked)
-option_new_folder.select()
-option_new_folder.grid(row=0, column=1, padx=20, pady=20)
+time2=time.time()                                                                                       # Recuperer le temps de la fin de l'analyse
 
-option_new_folder_name=ctk.CTkEntry(options, placeholder_text="MW-XML_to_MD_output")
-option_new_folder_name.insert(0, "MW-XML_to_MD_output")
-if_newfolder_checked()
+os.system("cls")                                                                                        # Effacer ecran
 
-convert_btn=ctk.CTkButton(app, text="Convert", command=convert)
-convert_btn.configure(state="disabled")
-convert_btn.grid(row=5, column=0, padx=20, pady=20)
 
-time=ctk.CTkLabel(app, text="")
-time.grid(row=6, column=0, padx=20, pady=2)
+# Afficher les fichier suspect
+# ------------
+print("\n < ----------------------------------------- > \n")
 
-app.mainloop()
+for exploit in suspect_exe:
+    print(f"L'exploit {exploit[0]} a ete retrouve  |  {exploit[1]}")
+
+print("\n < ----------------------------------------- > \n")
+
+for injector in suspect_dll:
+    print(f"L'injecteur {injector[0]} a ete retrouve | {injector[1]}")
+
+print("\n < ----------------------------------------- > \n")
+# -------------
+
+
+print(f"Scan terminé en {datetime.timedelta(seconds=round(time2-time1, 3))}\n")
+
+
+input("appuyer sur entré pour terminer")
