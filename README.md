@@ -1,1 +1,1 @@
-# XML-to-MarkDown
+# MediaWiki-XML-to-Markdown
