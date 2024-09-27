@@ -5,8 +5,7 @@ from bs4 import BeautifulSoup
 import customtkinter as ctk
 import json
 import requests
-from PIL import Image
-from io import BytesIO
+import re
 
 app_version="B-V0.4"
 
@@ -121,6 +120,7 @@ def convert():
     for i in pages:
         soup2=BeautifulSoup(str(i), "xml")
         title=soup2.find("title").string
+        title=title.split(":")[-1]
         text=soup2.find("text").string
 
         if title!="Accueil":
@@ -139,13 +139,14 @@ def convert():
             text_output=f"{text_output}{text}"
 
             if remove_balises:
+
                 for balise in balises:
-                    text_output=text_output.replace(f"<{balise}>", "")
-                    text_output=text_output.replace(f"</{balise}>", "")
+                    text_output=re.sub("<[^>]+>", "", text_output)
 
             
 
             def function_output():
+
                 with open(f"{output_path_eatch_files}/{title}.md", "+w", encoding="utf-8") as output:
                     output.write(text_output)
                     output.close()
