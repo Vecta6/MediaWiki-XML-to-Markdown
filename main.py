@@ -120,7 +120,7 @@ def convert():
     for i in pages:
         soup2=BeautifulSoup(str(i), "xml")
         title=soup2.find("title").string
-        title=title.split(":")[-1]
+        title=title.replace(":", "-")
         text=soup2.find("text").string
 
         if title!="Accueil":
